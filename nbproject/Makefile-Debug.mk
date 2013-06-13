@@ -56,7 +56,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=-lavcodec -lavformat -lavutil -lswscale `pkg-config --libs opencv`  
+LDLIBSOPTIONS=-lavcodec -lavformat -lavutil -lswscale `pkg-config --libs opencv` -ljpeg  
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}

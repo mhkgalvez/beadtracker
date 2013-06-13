@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "VideoInterface.h"
 #include "GeneralException.hpp"
 
@@ -136,6 +138,8 @@ void VideoInterface::open(string filePath) {
     sws_ctx = sws_getContext(codecCtx->width, codecCtx->height, 
             codecCtx->pix_fmt, codecCtx->width, codecCtx->height, PIX_FMT_RGB24, 
             SWS_BILINEAR, NULL, NULL, NULL);
+    
+    dump_format(formatCtx, 0, filePath.c_str(), 0);
   
     // Assign appropriate parts of buffer to image planes in pFrameRGB
     // Note that pFrameRGB is an AVFrame, but AVFrame is a superset
@@ -175,13 +179,13 @@ void VideoInterface::close() {
     thirdPartInit();
 }
 
-void VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int height, int iframe) {
-    FILE *file;
+string VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int height, int iframe) {
+    /*file;
     char szFilename[32];
     int  y;
 
     // Open file
-    sprintf(szFilename, "%s/frame%d.ppm", path.c_str(), iframe);
+    sprintf(szFilename, "%s/temp.ppm", path.c_str());
     file=fopen(szFilename, "wb");
     if (file == NULL)
       return;
@@ -194,51 +198,148 @@ void VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int heigh
       fwrite(frame->data[0]+y*frame->linesize[0], 1, width*3, file);
 
     // Close file
-    fclose(file);
-}
-
-void VideoInterface::ffmpegToOpencv(Mat& opencv_data) {  
-    cout << "Amount of pixels: " << codecCtx->height * codecCtx->width << endl;
+    fclose(file);*/
+    ofstream file;
+    string fileName;
     
-    for (int i = 0; i < codecCtx->height; i++) {
-        for (int j = 0; j < codecCtx->width * 3; j+=3) {
-            int red, blue;
-            red = i * codecCtx->height + j;
-            blue = red + 2;
-            
-            int temp = rawData[red];
-            rawData[red] = rawData[blue];
-            rawData[blue] = temp;
-        }
+    try {
+        // Open file
+        fileName += path;
+        fileName += "/frame";
+        fileName += dynamic_cast< std::ostringstream & >( ( std::ostringstream() << std::dec << iframe ) ).str();
+        fileName += ".ppm";
+    }
+    catch (bad_cast& ex) {
+        throw GeneralException("Error while trying to dynamic cast. Message: " + string(ex.what()));
     }
     
-    /*for (int i = 0; i < 12; i+=3) {
-        cout << "(" << (int) rawData[i] << ", " << (int) rawData[i+1] << ", " << (int) rawData[i+2] << ")" << endl;
-    }*/
+    // Open file
+    file.open(fileName.c_str());
     
-    opencv_data = Mat(codecCtx->height, codecCtx->width, 0, rawData, sizeof(uint8_t));
-    
-    for (int i = 0; i < codecCtx->height; i++) {
-        for (int j = 0; j < codecCtx->width * 3; j+=3) {
-            int red, green, blue;
-            string color;
-
-            int index = i * codecCtx->width * 3 + j;
-            
-            red = opencv_data.data[index];
-            green = opencv_data.data[index+1];
-            blue = opencv_data.data[index+2];
-
-            
-            if (red and !green and !blue) color = " R";
-            else if (!red and green and !blue) color = " G";
-            else if (!red and !green and blue) color = " B";
-            else color = " X";
-           
-            cout << color;
-            //cout << "(" << (int) opencv_data.data[i] << ", " << (int) opencv_data.data[i+1] << ", " << (int) opencv_data.data[i+2] << ")" << endl;
+    // Write on file
+    if (file.is_open()) {
+        // Write header
+        file << "P6\n" << width << " " << height << "\n255\n";
+        
+        // Write pixel data
+        for (int i = 0; i < height; i++) {
+            file.write((const char*) (frame->data[0] + i*frame->linesize[0]), 
+                    streamsize(width * 3));
         }
-        cout << endl;
+    }
+    else {
+        throw GeneralException("PPM file could not be open to be written. File: " + fileName);
+    }
+    
+    file.close();
+    
+    return fileName;
+}
+
+void VideoInterface::writeOnPipe(std::string path, AVFrame* frame, int width, int height) {
+    ofstream pipe;
+    string pipeName;
+    
+    cout << "Pipe to write: " << pipeName << endl;
+    pipeName += path += "/mypipe.ppm";
+    
+    // Open FIFO
+    pipe.open(pipeName.c_str());
+    
+    // Write on FIFO
+    if (pipe.is_open()) {
+        // Write header
+        pipe << "P6\n" << width << " " << height << "\n255\n";
+        
+        // Write pixel data
+        for (int i = 0; i < height; i++) {
+            pipe.write((const char*) (frame->data[0] + i*frame->linesize[0]), 
+                    streamsize(width * 3));
+        }
+    }
+    else {
+        throw GeneralException("Named pipe could not be open to be written. File: " + pipeName);
+    }    
+    
+    pipe.close();
+    
+}
+
+void VideoInterface::ffmpegToOpencv(Mat& opencvData) {  
+    static bool execute = true;
+    
+    if (execute) {
+        cout << "Amount of pixels: " << codecCtx->height * codecCtx->width << endl;
+        cout << "Frame height: " << frame->height << endl;
+        cout << "Frame width: " << frame->width << endl;
+
+        /*for (int i = 0; i < codecCtx->height; i++) {
+            for (int j = 0; j < codecCtx->width * 3; j+=3) {
+                int red, blue;
+                red = i * codecCtx->height + j;
+                blue = red + 2;
+
+                int temp = rawData[red];
+                rawData[red] = rawData[blue];
+                rawData[blue] = temp;
+            }
+        }*/
+
+        /*for (int i = 0; i < 12; i+=3) {
+            cout << "(" << (int) rawData[i] << ", " << (int) rawData[i+1] << ", " << (int) rawData[i+2] << ")" << endl;
+        }*/
+
+        opencvData = Mat(codecCtx->height, codecCtx->width, 0, rawData, sizeof(uint8_t));
+
+
+        uint8_t *p0 = frameRGB->data[0];
+        for (int y = 0; y < frame->height; y++) {
+            uint8_t *p = p0;
+            for (int x = 0; x < frame->width * 3; x+=3) {
+                int red, green, blue;
+                string color;
+
+                red = p[x];
+                green = p[x+1];
+                blue = p[x+2];
+
+
+                if (red and !green and !blue) color = " R";
+                else if (!red and green and !blue) color = " G";
+                else if (!red and !green and blue) color = " B";
+                else color = " X";
+
+                //cout << "[" << green << "] ";             
+                cout << color;
+            }
+            cout << endl;
+            p0 += frame->linesize[0];
+        }       
+        
+        /*for (int i = 0; i < codecCtx->height; i++) {
+            cout << "Line " << i << " size: " << frameRGB->linesize[i] << " bytes." << endl;
+            for (int j = 0; j < codecCtx->width * 3; j+=3) {
+                int red, green, blue;
+                string color;
+
+                int index = i * codecCtx->width * 3 + j;
+
+                red = opencv_data.data[index];
+                green = opencv_data.data[index+1];
+                blue = opencv_data.data[index+2];
+
+
+                if (red and !green and !blue) color = " R";
+                else if (!red and green and !blue) color = " G";
+                else if (!red and !green and blue) color = " B";
+                else color = " X";
+
+                cout << color;
+                //cout << "(" << (int) opencv_data.data[i] << ", " << (int) opencv_data.data[i+1] << ", " << (int) opencv_data.data[i+2] << ")" << endl;
+            }
+            cout << endl;
+        }*/
+        execute = false;
     }
 }
 
@@ -265,36 +366,38 @@ bool VideoInterface::operator>>(Mat& opencvFrame) {
         av_read_frame(formatCtx, &packet);
     } while (packet.stream_index != vStreamIndex);
     
-    int frameFinished;
+    int frameFinished = 0;
     
     // Is this a packet from the video stream?
     if (packet.stream_index == vStreamIndex) {
-        // Decode video frame
-        avcodec_decode_video2(codecCtx, frame, &frameFinished, &packet);
         
-        // Did we get a video frame?
-        if (frameFinished) {
-            // Convert the image from its native format to RGB
-            sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
-                    0, codecCtx->height, frameRGB->data, frameRGB->linesize);
-            if (save) saveToPPM("/media/ubuntu/8e8531d1-6bc6-4a57-8b6c-83e757bf778c/home/matheus/Videos/frames", 
-                    frameRGB, codecCtx->width, codecCtx->height, i);
-            i++;
-            
-            // Saving to Matrix
-            ffmpegToOpencv(opencvFrame);
-            
-            string file = pathPrefix + "/frames/file";
-            stringstream sStream;
-            sStream << i;
-            file += sStream.str();
-            file += ".jpg";
-   
-            Mat opencvFrame2;
-            cout << "Saving image into an OpenCV format. File: " << file << endl;
-            cvtColor(opencvFrame, opencvFrame2, CV_GRAY2BGR);
-            imwrite(file, opencvFrame2);
+        while (!frameFinished) {
+            // Decode video frame
+            avcodec_decode_video2(codecCtx, frame, &frameFinished, &packet);
         }
+        
+        // Convert the image from its native format to RGB
+        sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
+                0, codecCtx->height, frameRGB->data, frameRGB->linesize);
+        if (save) saveToPPM("/home/matheus/Videos/BeadTracker/frames", 
+                frameRGB, codecCtx->width, codecCtx->height, i);
+        i++;
+
+        // Saving to Matrix
+        /*ffmpegToOpencv(opencvFrame);
+        
+        string name = saveToPPM("/home/matheus/Videos/BeadTracker/frames", frameRGB,
+                codecCtx->width, codecCtx->height, 0);*/
+        writeOnPipe(pathPrefix + "/frames", frameRGB, codecCtx->width, codecCtx->height);
+
+        string file = pathPrefix + "/mypipe.ppm";
+        stringstream sStream;
+        sStream << i-1;
+        file += sStream.str();
+
+        Mat opencvFrame2 = imread(file, -1);
+        //cvtColor(opencvFrame, opencvFrame2, CV_GRAY2BGR);
+        imwrite(file, opencvFrame2);
         
         // Free the RGB image
         av_freep(&frameRGB);
@@ -303,7 +406,7 @@ bool VideoInterface::operator>>(Mat& opencvFrame) {
         av_freep(&frame);
         av_free_packet(&packet);
 
-        // Reallocate frames and reattach rawData to frameRGB
+        // Reallocate frames and attach rawData again to frameRGB
     	frame = avcodec_alloc_frame();
     	frameRGB = avcodec_alloc_frame();
         if (frameRGB == NULL or frame == NULL) {

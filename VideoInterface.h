@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <typeinfo>
 
 // Third-part Includes
 #include <opencv2/opencv.hpp>
@@ -54,7 +55,8 @@ private:
     virtual ~VideoInterface(void);
 
     void thirdPartInit();                  //Init third-part libraries variables and structures
-    void saveToPPM(std::string path, AVFrame *frame, int width, int height, int iframe);
+    std::string saveToPPM(std::string path, AVFrame *frame, int width, int height, int iframe);
+    void writeOnPipe(std::string path, AVFrame *frame, int width, int height);
     void ffmpegToOpencv(cv::Mat& opencv_data);
 
 public:

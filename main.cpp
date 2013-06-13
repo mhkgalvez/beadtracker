@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
     
     cout << "Type a video name: ";
     getline(cin, videoPath);
+    //videoPath = "out2.avi";
     
     string newDir = "/home/matheus/Videos/BeadTracker/frames";
     if (chdir(newDir.c_str()) != 0) {
@@ -41,13 +42,13 @@ int main(int argc, char** argv) {
     VideoInterface& vi = VideoInterface::load();
     Mat frame;
     try { 
-        vi >> false; // Set save mode
+        vi >> true; // Set save mode
         for (int i = 0; i < 1; i++) {
             vi.open(videoPath);
             
             // Reading frames
             for (int j = 0; j < vi.getFrameCount() && j < 50; j++) {
-                vi >> frame;
+                 vi >> frame;
             }
             vi.close();
         }
