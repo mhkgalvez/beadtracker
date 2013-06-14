@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     VideoInterface& vi = VideoInterface::load();
     Mat frame;
     try { 
-        vi >> true; // Set save mode
+        vi >> false; // Set save mode
         for (int i = 0; i < 1; i++) {
             vi.open(videoPath);
             

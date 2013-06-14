@@ -225,7 +225,7 @@ string VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int hei
         for (int i = 0; i < height; i++) {
             file.write((const char*) (frame->data[0] + i*frame->linesize[0]), 
                     streamsize(width * 3));
-        }
+        } 
     }
     else {
         throw GeneralException("PPM file could not be open to be written. File: " + fileName);
@@ -237,10 +237,9 @@ string VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int hei
 }
 
 void VideoInterface::writeOnPipe(std::string path, AVFrame* frame, int width, int height) {
-    ofstream pipe;
     string pipeName;
+    ofstream pipe;
     
-    cout << "Pipe to write: " << pipeName << endl;
     pipeName += path += "/mypipe.ppm";
     
     // Open FIFO
@@ -262,7 +261,6 @@ void VideoInterface::writeOnPipe(std::string path, AVFrame* frame, int width, in
     }    
     
     pipe.close();
-    
 }
 
 void VideoInterface::ffmpegToOpencv(Mat& opencvData) {  
@@ -385,18 +383,29 @@ bool VideoInterface::operator>>(Mat& opencvFrame) {
 
         // Saving to Matrix
         /*ffmpegToOpencv(opencvFrame);
-        
-        string name = saveToPPM("/home/matheus/Videos/BeadTracker/frames", frameRGB,
-                codecCtx->width, codecCtx->height, 0);*/
-        writeOnPipe(pathPrefix + "/frames", frameRGB, codecCtx->width, codecCtx->height);
+        */
+//        string name = saveToPPM("/home/matheus/Videos/BeadTracker/frames", frameRGB,
+//                codecCtx->width, codecCtx->height, i-1);
+        //writeOnPipe(pathPrefix + "/frames", frameRGB, codecCtx->width, codecCtx->height);
 
-        string file = pathPrefix + "/mypipe.ppm";
+        string file = pathPrefix + "/frames/opencv";
         stringstream sStream;
         sStream << i-1;
         file += sStream.str();
+        file += ".jpg";
 
-        Mat opencvFrame2 = imread(file, -1);
-        //cvtColor(opencvFrame, opencvFrame2, CV_GRAY2BGR);
+        Size size;
+        size.height = codecCtx->height;
+        size.width = codecCtx->width; 
+        
+        cout << size.width << "X" << size.height << endl;
+        Mat opencvFrame2 = Mat(size, CV_8UC3, frame->data, 0);
+        
+        for (int i = 0; i < size.area() * 3; i++) frameRGB->data[i];
+        
+        cout << size.area() * 3 << endl;
+        Mat img = imread("/home/matheus/Pictures/green.jpg");
+        
         imwrite(file, opencvFrame2);
         
         // Free the RGB image
