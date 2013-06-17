@@ -57,8 +57,6 @@ private:
 
     void thirdPartInit();                  //Init third-part libraries variables and structures
     std::string saveToPPM(std::string path, AVFrame *frame, int width, int height, int iframe);
-    void writeOnPipe(std::string path, AVFrame *frame, int width, int height);
-    void ffmpegToOpencv(cv::Mat& opencv_data);
 
 public:
     std::string pathPrefix;
@@ -81,5 +79,7 @@ public:
     double getDuration();
     int getCurrentFrame();    
 };
+
+uint8_t* rgbTobgr(uint8_t* data, int area);
 
 #endif

@@ -7,6 +7,7 @@
 
 // C and Unix Includes
 #include <unistd.h>
+#include <time.h>
 #include <pwd.h>
 
 // Third-part libraries Includes
@@ -38,18 +39,24 @@ int main(int argc, char** argv) {
     }  
     system("rm *");
     
+    namedWindow("Movie");
+    
     videoPath = resPath + videoPath;
     VideoInterface& vi = VideoInterface::load();
     Mat frame;
-    try { 
+    try {         
         vi >> false; // Set save mode
         for (int i = 0; i < 1; i++) {
             vi.open(videoPath);
             
             // Reading frames
-            for (int j = 0; j < vi.getFrameCount() && j < 50; j++) {
+            for (int j = 0; j < vi.getFrameCount() /*&& j < 50*/; j++) {
                  vi >> frame;
+                 imshow("Movie", frame);
+                 if (waitKey(1000/vi.getFPS()) != -1) break;
+                 
             }
+            cout << endl;
             vi.close();
         }
     }
