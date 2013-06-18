@@ -19,8 +19,8 @@
       <itemPath>GeneralException.cpp</itemPath>
       <itemPath>OpenVideoException.cpp</itemPath>
       <itemPath>ReadException.cpp</itemPath>
-      <itemPath>VideoInterface.cpp</itemPath>
-      <itemPath>VideoInterface.h</itemPath>
+      <itemPath>VideoStream.cpp</itemPath>
+      <itemPath>VideoStream.h</itemPath>
       <itemPath>main.cpp</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -72,9 +72,9 @@
       </item>
       <item path="ReadException.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="VideoInterface.cpp" ex="false" tool="1" flavor2="0">
+      <item path="VideoStream.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="VideoInterface.h" ex="false" tool="3" flavor2="0">
+      <item path="VideoStream.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="ffmpeg.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -114,9 +114,9 @@
       </item>
       <item path="ReadException.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="VideoInterface.cpp" ex="false" tool="1" flavor2="0">
+      <item path="VideoStream.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="VideoInterface.h" ex="false" tool="3" flavor2="0">
+      <item path="VideoStream.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="ffmpeg.hpp" ex="false" tool="3" flavor2="0">
       </item>

@@ -16,15 +16,13 @@
 #include "ffmpeg.hpp"
 
 // Local Includes
-#include "VideoInterface.h"
+#include "VideoStream.h"
 #include "OpenVideoException.hpp"
 
 using namespace cv;
 using namespace std;
 
 const string resPath = "/home/matheus/Videos/BeadTracker/";
-
-int currMemUsage();
 
 int main(int argc, char** argv) {	
     string videoPath, frames_str;
@@ -42,7 +40,7 @@ int main(int argc, char** argv) {
     namedWindow("Movie");
     
     videoPath = resPath + videoPath;
-    VideoInterface& vi = VideoInterface::load();
+    VideoStream& vi = VideoStream::load();
     Mat frame;
     try {         
         vi >> false; // Set save mode
@@ -50,11 +48,11 @@ int main(int argc, char** argv) {
             vi.open(videoPath);
             
             // Reading frames
-            for (int j = 0; j < vi.getFrameCount() /*&& j < 50*/; j++) {
+            for (int j = 0; j < vi.frameCount() /*&& j < 50*/; j++) {
                  vi >> frame;
                  imshow("Movie", frame);
-                 if (waitKey(1000/vi.getFPS()) != -1) break;
-                 
+                 if (waitKey(1000/vi.fps()) != -1) break;
+                 cout << vi.currentFrame() << endl;
             }
             cout << endl;
             vi.close();
@@ -66,34 +64,4 @@ int main(int argc, char** argv) {
     }
     
     return 0;
-}
-
-// Get total memory use by the process in the time when the function is called
-int currMemUsage() {
-    ifstream file;
-    file.open("/proc/self/status");
-    
-    if (!file.is_open()) {
-        throw runtime_error("Process file could not be open!");
-    }
-    
-    string line;
-    
-    do {
-        getline(file, line);
-        
-        istringstream strStream(line);
-        string substr;
-        strStream >> substr;
-        if (substr.compare("VmSize:") == 0) {
-            int mem;
-            strStream >> mem;
-            return mem;
-        }
-        if (file.eof()) break;
-    } while (true);
-    cout << ">> " << line << endl;
-    
-    file.close();
-    return -1;
 }

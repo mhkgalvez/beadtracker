@@ -1,15 +1,18 @@
 #include <fstream>
 
-#include "VideoInterface.h"
+#include "VideoStream.h"
 #include "GeneralException.hpp"
 
 using namespace cv;
 using namespace std;
 
-VideoInterface *VideoInterface::singleton = NULL;
+VideoStream *VideoStream::singleton = NULL;
 
-VideoInterface::VideoInterface() {	
-    thirdPartInit();
+/*
+ * Default constructor. Initialize necessary variabes as well as register codecs.
+ */
+VideoStream::VideoStream() {	
+    init();
     
     // Initialize prefix for relative paths
     pathPrefix = "/home/matheus/Videos/BeadTracker";
@@ -17,21 +20,26 @@ VideoInterface::VideoInterface() {
     // Initialize vinfo once and for all
     vinfo = new VideoInformation;   
     
-    // Say that reading is not finished yet
-    finishReading = false;
-    
     // Register all CODECs for later use
     av_register_all();     
 }
 
-VideoInterface::~VideoInterface(void) {
+/*
+ * Destructor. If there is an open video, the function closes it. Free all 
+ * dynamically allocated memory.
+ */
+VideoStream::~VideoStream(void) {
     if (openSuccess) close();
     
     
     delete vinfo;
 }
 
-void VideoInterface::thirdPartInit() {
+/*
+ * Some recurrent initializations that need to be repeated each time the user 
+ * closes and open a video again. 
+ */
+void VideoStream::init() {
     currFrame = 0;
     openSuccess = false;
     //vinfo = NULL;
@@ -47,21 +55,31 @@ void VideoInterface::thirdPartInit() {
     rawData = NULL;     
 }
 
-// Singleton implementation can be thread safe. Must test.
-// This function initializes the single instance of the class and return a pointer to it. 
-VideoInterface& VideoInterface::load() {
+/* Singleton implementation can be thread safe. Must test.
+ * This function initializes the single instance of the class 
+ * and returns a pointer to it.
+ */  
+VideoStream& VideoStream::load() {
 	if (singleton == NULL) {
-		singleton = new VideoInterface();
+		singleton = new VideoStream();
 	}
     
 	return *singleton;
 }
 
-void VideoInterface::release() {
+/*
+ * This static function frees the memory occupied by the singleton instance by
+ * calling its destructor.
+ */
+void VideoStream::release() {
 	delete singleton;
 }
 
-void VideoInterface::open(string filePath) {
+/*
+ * This function receives a file name as argument and opens the video file, 
+ * as well as loads all the variables related to it.
+ */
+void VideoStream::open(string filePath) {
     // Check if it is already open
     if (openSuccess) {
         throw GeneralException("There is an already open video in this interface.");
@@ -108,6 +126,7 @@ void VideoInterface::open(string filePath) {
     vinfo->duration = duration;
     vinfo->fps = fps;
     vinfo->frameCount = frameCount;
+    
     /*------------------------------*/
     
     // Find the decoder for the video stream
@@ -150,7 +169,11 @@ void VideoInterface::open(string filePath) {
     openSuccess = true;
 }
 
-void VideoInterface::close() {
+/*
+ * This function closes all ffmpeg structures and make the interface able 
+ * to open another file.
+ */
+void VideoStream::close() {
     // Free buffer
     av_free(rawData);
             
@@ -172,14 +195,14 @@ void VideoInterface::close() {
     // Close Codec context
     avcodec_close(codecCtx);
     
-    // Say to the reading function to stop restart reading counting
-    finishReading = true;
-    
     // Reinit ffmpeg variables
-    thirdPartInit();
+    init();
 }
 
-string VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int height, int iframe) {
+/*
+ * This function saves a frame to a ppm (raw image) file.
+ */
+string VideoStream::saveToPPM(string path, AVFrame *frame, int width, int height, int iframe) {
     ofstream file;
     string fileName;
     
@@ -217,22 +240,18 @@ string VideoInterface::saveToPPM(string path, AVFrame *frame, int width, int hei
     return fileName;
 }
 
-bool VideoInterface::operator>>(Mat& opencvFrame) {
-    static int i = 0;
+/*
+ * The extraction operator overloaded for reading purposes. You have to pass a
+ * frame as argument and this frame will be loaded with the reading result.
+ */
+bool VideoStream::operator>>(Mat& opencvFrame) {
     // Check to see if file is open
     if (!openSuccess) {
         throw ReadException("File not open yet.");
     }
     
-    if (i == vinfo->frameCount) {
-        i = 0;
+    if (currFrame == vinfo->frameCount) {
         return true;  // Leave in case of finish reading video frames
-    }
-    
-    if (finishReading) {
-        finishReading = false;
-        i = 0;
-        return false;
     }
     
     // Read frame until it is a video frame
@@ -253,18 +272,12 @@ bool VideoInterface::operator>>(Mat& opencvFrame) {
         sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
                 0, codecCtx->height, frameRGB->data, frameRGB->linesize);
         if (save) name = saveToPPM("/home/matheus/Videos/BeadTracker/frames", 
-                frameRGB, codecCtx->width, codecCtx->height, i);
-        i++;
+                frameRGB, codecCtx->width, codecCtx->height, currFrame);
+        currFrame++;
 
-        Size size;
-        size.height = codecCtx->height;
-        size.width = codecCtx->width; 
-         
+        Size size(codecCtx->width, codecCtx->height);
         opencvFrame = Mat(size, CV_8UC3, rgbTobgr(rawData, size.area() * 3), 0);
                 
-        //GaussianBlur(opencvFrame2, out, Size(5, 5), 0, 0);
-        //imwrite(file, out);
-        
         // Free the RGB image
         av_freep(&frameRGB);
 	  
@@ -285,33 +298,49 @@ bool VideoInterface::operator>>(Mat& opencvFrame) {
     return false;
 }
 
-VideoInterface& VideoInterface::operator>>(bool saveToPPM) {
+/*
+ * A polymorphic version of the extraction operator used, this time, to configure
+ * the option to save the result to an image file (.ppm).
+ */
+VideoStream& VideoStream::operator>>(bool saveToPPM) {
     this->save = saveToPPM;
     return (*this);
 }
 
-int VideoInterface::getFrameCount() {
+/*
+ * Return the number of frames in the video.
+ */
+int VideoStream::frameCount() const {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
     return vinfo->frameCount;
 }
 
-double VideoInterface::getFPS() {
+/*
+ * Return the frame rate (frame per seconds).
+ */
+double VideoStream::fps() const {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
     return vinfo->fps;
 }
 
-double VideoInterface::getDuration() {
+/*
+ * Return the total duration of the video.
+ */
+double VideoStream::duration() const {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
     return vinfo->duration;
 }
 
-inline int VideoInterface::getCurrentFrame() {
+/*
+ * Return the current frame to be read by the stream.
+ */
+int VideoStream::currentFrame() const {
     return currFrame;
 }
 

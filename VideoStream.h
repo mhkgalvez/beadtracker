@@ -1,5 +1,5 @@
-#ifndef VIDEOINTERFACE_HPP
-#define	VIDEOINTERFACE_HPP
+#ifndef VIDEOISTREAM_HPP
+#define	VIDEOISTREAM_HPP
 
 // C++ Includes
 #include <iostream>
@@ -28,15 +28,14 @@ typedef struct _video_info {
     int frameCount;
 } VideoInformation;
 
-class VideoInterface {
+class VideoStream {
 private:
-    static VideoInterface *singleton; // Store the single intance of the class
+    static VideoStream *singleton; // Store the single intance of the class
     
     bool openSuccess;       // Says to reading functions if open() was completely executed
     int currFrame;          // Store the current frame for the purpose of streaming reading
     VideoInformation* vinfo;// Store information on the open video
     bool save;
-    bool finishReading;
     
     // FFMPEG variables
     AVFormatContext     *formatCtx;
@@ -50,19 +49,19 @@ private:
     struct SwsContext   *sws_ctx;
     
     // Constructors and Destructors
-    VideoInterface();
-    VideoInterface(VideoInterface const&); // Avoid creating instances by = calls
-    void operator=(VideoInterface const&); // Avoid creating instances by = calls
-    virtual ~VideoInterface(void);
+    VideoStream();
+    VideoStream(VideoStream const&); // Avoid creating instances by = calls
+    void operator=(VideoStream const&); // Avoid creating instances by = calls
+    virtual ~VideoStream(void);
 
-    void thirdPartInit();                  //Init third-part libraries variables and structures
+    void init();                  //Init third-part libraries variables and structures
     std::string saveToPPM(std::string path, AVFrame *frame, int width, int height, int iframe);
 
 public:
     std::string pathPrefix;
     
     // Creation ad deletion
-    static VideoInterface& load(); // Load the singleton and return a reference to the object
+    static VideoStream& load(); // Load the singleton and return a reference to the object
     void release();                      // Free memory space. Causes a new instance to be created by a subsequent call of load()
 
     // File dealing functions
@@ -71,13 +70,13 @@ public:
 
     // Frame dealing functions
     bool operator>>(cv::Mat& opencvFrame);      // Read frame in a stream
-    VideoInterface& operator>>(bool saveToPPM);
+    VideoStream& operator>>(bool saveToPPM);
     
     // Getters
-    int getFrameCount();
-    double getFPS();
-    double getDuration();
-    int getCurrentFrame();    
+    int frameCount() const;
+    double fps() const;
+    double duration() const;
+    int currentFrame() const;    
 };
 
 uint8_t* rgbTobgr(uint8_t* data, int area);
