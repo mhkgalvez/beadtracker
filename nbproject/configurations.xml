@@ -4,10 +4,6 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
-      <itemPath>GeneralException.hpp</itemPath>
-      <itemPath>OpenVideoException.hpp</itemPath>
-      <itemPath>ReadException.hpp</itemPath>
-      <itemPath>ffmpeg.hpp</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -20,7 +16,6 @@
       <itemPath>OpenVideoException.cpp</itemPath>
       <itemPath>ReadException.cpp</itemPath>
       <itemPath>VideoStream.cpp</itemPath>
-      <itemPath>VideoStream.h</itemPath>
       <itemPath>main.cpp</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -34,6 +29,8 @@
                    kind="IMPORTANT_FILES_FOLDER">
       <itemPath>Makefile</itemPath>
     </logicalFolder>
+    <itemPath>Frame.cpp</itemPath>
+    <itemPath>Frame.hpp</itemPath>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -46,10 +43,12 @@
       </toolsSet>
       <compileType>
         <ccTool>
+          <standard>8</standard>
+          <commandlineTool>g++-4.8</commandlineTool>
           <warningLevel>2</warningLevel>
         </ccTool>
         <linkerTool>
-          <commandlineTool>g++</commandlineTool>
+          <commandlineTool>g++-4.8</commandlineTool>
           <linkerLibItems>
             <linkerLibLibItem>avcodec</linkerLibLibItem>
             <linkerLibLibItem>avformat</linkerLibLibItem>
@@ -60,23 +59,17 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
-      <item path="GeneralException.cpp" ex="false" tool="1" flavor2="0">
+      <item path="Frame.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="GeneralException.hpp" ex="false" tool="3" flavor2="0">
+      <item path="Frame.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="GeneralException.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="OpenVideoException.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="OpenVideoException.hpp" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="ReadException.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="ReadException.hpp" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="VideoStream.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="VideoStream.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="ffmpeg.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
@@ -102,23 +95,17 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
-      <item path="GeneralException.cpp" ex="false" tool="1" flavor2="0">
+      <item path="Frame.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="GeneralException.hpp" ex="false" tool="3" flavor2="0">
+      <item path="Frame.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="GeneralException.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="OpenVideoException.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="OpenVideoException.hpp" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="ReadException.cpp" ex="false" tool="1" flavor2="0">
       </item>
-      <item path="ReadException.hpp" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="VideoStream.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="VideoStream.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="ffmpeg.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>

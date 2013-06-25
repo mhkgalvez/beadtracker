@@ -15,8 +15,8 @@ NM=nm
 CCADMIN=CCadmin
 RANLIB=ranlib
 CC=gcc
-CCC=g++
-CXX=g++
+CCC=g++-4.8
+CXX=g++-4.8
 FC=gfortran
 AS=as
 
@@ -35,6 +35,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/Frame.o \
 	${OBJECTDIR}/GeneralException.o \
 	${OBJECTDIR}/OpenVideoException.o \
 	${OBJECTDIR}/ReadException.o \
@@ -64,32 +65,37 @@ LDLIBSOPTIONS=-lavcodec -lavformat -lavutil -lswscale `pkg-config --libs opencv`
 
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/beadtracker: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	g++ -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/beadtracker ${OBJECTFILES} ${LDLIBSOPTIONS}
+	g++-4.8 -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/beadtracker ${OBJECTFILES} ${LDLIBSOPTIONS}
+
+${OBJECTDIR}/Frame.o: Frame.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/Frame.o Frame.cpp
 
 ${OBJECTDIR}/GeneralException.o: GeneralException.cpp 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv`   -MMD -MP -MF $@.d -o ${OBJECTDIR}/GeneralException.o GeneralException.cpp
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/GeneralException.o GeneralException.cpp
 
 ${OBJECTDIR}/OpenVideoException.o: OpenVideoException.cpp 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv`   -MMD -MP -MF $@.d -o ${OBJECTDIR}/OpenVideoException.o OpenVideoException.cpp
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/OpenVideoException.o OpenVideoException.cpp
 
 ${OBJECTDIR}/ReadException.o: ReadException.cpp 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv`   -MMD -MP -MF $@.d -o ${OBJECTDIR}/ReadException.o ReadException.cpp
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/ReadException.o ReadException.cpp
 
 ${OBJECTDIR}/VideoStream.o: VideoStream.cpp 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv`   -MMD -MP -MF $@.d -o ${OBJECTDIR}/VideoStream.o VideoStream.cpp
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/VideoStream.o VideoStream.cpp
 
 ${OBJECTDIR}/main.o: main.cpp 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
-	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv`   -MMD -MP -MF $@.d -o ${OBJECTDIR}/main.o main.cpp
+	$(COMPILE.cc) -g -Wall `pkg-config --cflags opencv` -std=c++11  -MMD -MP -MF $@.d -o ${OBJECTDIR}/main.o main.cpp
 
 # Subprojects
 .build-subprojects:

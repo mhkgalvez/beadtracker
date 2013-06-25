@@ -1,6 +1,6 @@
 #include <fstream>
 
-#include "VideoStream.h"
+#include "VideoStream.hpp"
 #include "GeneralException.hpp"
 
 using namespace cv;

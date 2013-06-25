@@ -35,6 +35,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/Frame.o \
 	${OBJECTDIR}/GeneralException.o \
 	${OBJECTDIR}/OpenVideoException.o \
 	${OBJECTDIR}/ReadException.o \
@@ -65,6 +66,11 @@ LDLIBSOPTIONS=
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/beadtracker: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/beadtracker ${OBJECTFILES} ${LDLIBSOPTIONS}
+
+${OBJECTDIR}/Frame.o: Frame.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/Frame.o Frame.cpp
 
 ${OBJECTDIR}/GeneralException.o: GeneralException.cpp 
 	${MKDIR} -p ${OBJECTDIR}
