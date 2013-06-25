@@ -6,13 +6,19 @@
 using namespace cv;
 using namespace std;
 
-VideoStream *VideoStream::singleton = NULL;
+pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
+
+VideoStream *VideoStream::singleton = NULL; // Singleton instance
 
 /*
  * Default constructor. Initialize necessary variabes as well as register codecs.
  */
 VideoStream::VideoStream() {	
     init();
+    
+    // For Debug purposes
+    cout << "Created an instance of VideoStream.\n";
+    // -----    
     
     // Initialize prefix for relative paths
     pathPrefix = "/home/matheus/Videos/BeadTracker";
@@ -42,6 +48,7 @@ VideoStream::~VideoStream(void) {
 void VideoStream::init() {
     currFrame = 0;
     openSuccess = false;
+    
     //vinfo = NULL;
     save = false;
     

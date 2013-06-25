@@ -8,6 +8,9 @@
 #include <fstream>
 #include <typeinfo>
 
+// C and Unix
+#include <pthread.h>
+
 // Third-part Includes
 #include <opencv2/opencv.hpp>
 #include "ffmpeg.hpp"
@@ -17,10 +20,7 @@
 #include "OpenVideoException.hpp"
 #include "GeneralException.hpp"
 
-/*class Mat {
-public:
-    Mat(int, int, int, void*, size_t) {};
-};*/
+extern pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
 
 typedef struct _video_info {
     double fps;
