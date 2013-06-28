@@ -4,6 +4,7 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>Frame.hpp</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -12,6 +13,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>Frame.cpp</itemPath>
       <itemPath>GeneralException.cpp</itemPath>
       <itemPath>OpenVideoException.cpp</itemPath>
       <itemPath>ReadException.cpp</itemPath>
@@ -29,8 +31,6 @@
                    kind="IMPORTANT_FILES_FOLDER">
       <itemPath>Makefile</itemPath>
     </logicalFolder>
-    <itemPath>Frame.cpp</itemPath>
-    <itemPath>Frame.hpp</itemPath>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -43,8 +43,10 @@
       </toolsSet>
       <compileType>
         <ccTool>
+          <architecture>2</architecture>
           <standard>8</standard>
           <commandlineTool>g++-4.8</commandlineTool>
+          <commandLine>-O3</commandLine>
           <warningLevel>2</warningLevel>
         </ccTool>
         <linkerTool>

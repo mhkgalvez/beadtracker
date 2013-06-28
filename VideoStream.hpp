@@ -7,6 +7,7 @@
 #include <sstream>
 #include <fstream>
 #include <typeinfo>
+#include <mutex>
 
 // C and Unix
 #include <pthread.h>
@@ -21,6 +22,7 @@
 #include "GeneralException.hpp"
 
 extern pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
+extern std::mutex mtx_singleton; // Mutex for controlling singleton thread-safety
 
 typedef struct _video_info {
     double fps;
@@ -73,12 +75,12 @@ public:
     VideoStream& operator>>(bool saveToPPM);
     
     // Getters
-    int frameCount() const;
+    int frame_count() const;
     double fps() const;
     double duration() const;
-    int currentFrame() const;    
+    int next_frame_id() const;    
 };
 
-uint8_t* rgbTobgr(uint8_t* data, int area);
+uint8_t* rgb2bgr(uint8_t* data, int area);
 
 #endif

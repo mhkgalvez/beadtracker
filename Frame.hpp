@@ -17,20 +17,26 @@
 // Local includes
 #include "GeneralException.hpp"
 
+extern const int END_FRAME_ID;
+
 class Frame {
 private:
     int _id;
     std::vector<cv::Vec3f> _circles;
-    cv::Mat _data;
+    cv::Mat* _data;
 public:
     Frame();
-    Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat data);
+    Frame(bool is_end);
+    Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat* data);
     Frame(const Frame& orig);
     virtual ~Frame();
     
-    int id() const;
-    std::vector<cv::Vec3f> circles() const;
-    cv::Mat data() const;
+    int id();
+    std::vector<cv::Vec3f> circles();
+    cv::Mat* data();
+    
+    static Frame end_frame();
+    static bool is_end_frame(Frame&);
 
 };
 

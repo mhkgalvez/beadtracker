@@ -7,6 +7,7 @@ using namespace cv;
 using namespace std;
 
 pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
+mutex mtx_singleton; // Mutex for controlling singleton thread-safety
 
 VideoStream *VideoStream::singleton = NULL; // Singleton instance
 
@@ -14,11 +15,7 @@ VideoStream *VideoStream::singleton = NULL; // Singleton instance
  * Default constructor. Initialize necessary variabes as well as register codecs.
  */
 VideoStream::VideoStream() {	
-    init();
-    
-    // For Debug purposes
-    cout << "Created an instance of VideoStream.\n";
-    // -----    
+    init();   
     
     // Initialize prefix for relative paths
     pathPrefix = "/home/matheus/Videos/BeadTracker";
@@ -67,10 +64,11 @@ void VideoStream::init() {
  * and returns a pointer to it.
  */  
 VideoStream& VideoStream::load() {
+    mtx_singleton.lock();
 	if (singleton == NULL) {
 		singleton = new VideoStream();
 	}
-    
+    mtx_singleton.unlock();
 	return *singleton;
 }
 
@@ -86,7 +84,7 @@ void VideoStream::release() {
  * This function receives a file name as argument and opens the video file, 
  * as well as loads all the variables related to it.
  */
-void VideoStream::open(string filePath) {
+void VideoStream::open(string filePath) {;
     // Check if it is already open
     if (openSuccess) {
         throw GeneralException("There is an already open video in this interface.");
@@ -121,7 +119,7 @@ void VideoStream::open(string filePath) {
     // Grab useful information
     double duration = ((double) formatCtx->duration)/AV_TIME_BASE;
     double fps = 1/av_q2d(codecCtx->time_base);
-    cout << "Num: " << codecCtx->time_base.num << " / Den: " << codecCtx->time_base.den << endl;
+    //cout << "Num: " << codecCtx->time_base.num << " / Den: " << codecCtx->time_base.den << endl;
     int frameCount = duration * fps;
     /*cout << "Numerator:\t" << codecCtx->time_base.num << endl;
     cout << "Denominator:\t" << codecCtx->time_base.den << endl;
@@ -165,7 +163,7 @@ void VideoStream::open(string filePath) {
             codecCtx->pix_fmt, codecCtx->width, codecCtx->height, PIX_FMT_RGB24, 
             SWS_BILINEAR, NULL, NULL, NULL);
     
-    av_dump_format(formatCtx, 0, filePath.c_str(), 0);
+    //av_dump_format(formatCtx, 0, filePath.c_str(), 0);
   
     // Assign appropriate parts of buffer to image planes in pFrameRGB
     // Note that pFrameRGB is an AVFrame, but AVFrame is a superset
@@ -283,7 +281,7 @@ bool VideoStream::operator>>(Mat& opencvFrame) {
         currFrame++;
 
         Size size(codecCtx->width, codecCtx->height);
-        opencvFrame = Mat(size, CV_8UC3, rgbTobgr(rawData, size.area() * 3), 0);
+        opencvFrame = Mat(size, CV_8UC3, rgb2bgr(rawData, size.area() * 3), 0);
                 
         // Free the RGB image
         av_freep(&frameRGB);
@@ -317,7 +315,7 @@ VideoStream& VideoStream::operator>>(bool saveToPPM) {
 /*
  * Return the number of frames in the video.
  */
-int VideoStream::frameCount() const {
+int VideoStream::frame_count() const {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
@@ -345,9 +343,9 @@ double VideoStream::duration() const {
 }
 
 /*
- * Return the current frame to be read by the stream.
+ * Return the id of the next frame to be read by the stream.
  */
-int VideoStream::currentFrame() const {
+int VideoStream::next_frame_id() const {
     return currFrame;
 }
 
@@ -355,7 +353,7 @@ int VideoStream::currentFrame() const {
  * to the vector as argument as well as the total amount of pixels.
  * The function returns the pointer passed as argument. 
  */
-uint8_t* rgbTobgr(uint8_t* data, int area) {
+uint8_t* rgb2bgr(uint8_t* data, int area) {
     for (int i = 0; i < area; i+=3) {
         uint8_t red, blue;
         
