@@ -6,7 +6,6 @@
 using namespace cv;
 using namespace std;
 
-pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
 mutex mtx_singleton; // Mutex for controlling singleton thread-safety
 
 VideoStream *VideoStream::singleton = NULL; // Singleton instance
@@ -50,13 +49,13 @@ void VideoStream::init() {
     save = false;
     
     // FFMPEG
-    formatCtx = NULL;
-    vStreamIndex = -1;
+    format_ctx = NULL;
+    v_stream_index = -1;
     codec = NULL;
-    codecCtx = NULL;
+    codec_ctx = NULL;
     frame = NULL;
-    frameRGB = NULL;
-    rawData = NULL;     
+    frame_rgb = NULL;
+    raw_data = NULL;     
 }
 
 /* Singleton implementation can be thread safe. Must test.
@@ -91,34 +90,34 @@ void VideoStream::open(string filePath) {;
     }
     
     // Open video file
-    if (avformat_open_input(&formatCtx, filePath.c_str(), NULL, NULL) != 0)  {
+    if (avformat_open_input(&format_ctx, filePath.c_str(), NULL, NULL) != 0)  {
         throw OpenVideoException("Video could not be open. Path: " + filePath);     
     }
     
     //Retrieve stream information
-    if (avformat_find_stream_info(formatCtx, NULL) < 0) {
+    if (avformat_find_stream_info(format_ctx, NULL) < 0) {
         throw OpenVideoException("Could not ind stream information for the given video.");
     }
     
     // Find first video stream
-    vStreamIndex = -1;
-    for (uint i = 0; i < formatCtx->nb_streams; ++i) {
-        if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            vStreamIndex = i;
+    v_stream_index = -1;
+    for (uint i = 0; i < format_ctx->nb_streams; ++i) {
+        if (format_ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+            v_stream_index = i;
             break;
         }
     }
-    if (vStreamIndex == -1) {
+    if (v_stream_index == -1) {
         throw OpenVideoException("Could not find a video stream.");
     }
     
     // Get a pointer to the codec context for the video stream
-    codecCtx = formatCtx->streams[vStreamIndex]->codec;
+    codec_ctx = format_ctx->streams[v_stream_index]->codec;
     
     /*------------------------------*/
     // Grab useful information
-    double duration = ((double) formatCtx->duration)/AV_TIME_BASE;
-    double fps = 1/av_q2d(codecCtx->time_base);
+    double duration = ((double) format_ctx->duration)/AV_TIME_BASE;
+    double fps = 1/av_q2d(codec_ctx->time_base);
     //cout << "Num: " << codecCtx->time_base.num << " / Den: " << codecCtx->time_base.den << endl;
     int frameCount = duration * fps;
     /*cout << "Numerator:\t" << codecCtx->time_base.num << endl;
@@ -135,14 +134,14 @@ void VideoStream::open(string filePath) {;
     /*------------------------------*/
     
     // Find the decoder for the video stream
-    codec = avcodec_find_decoder(codecCtx->codec_id);
+    codec = avcodec_find_decoder(codec_ctx->codec_id);
     if (codec == NULL) {
         throw OpenVideoException("Unsuported codec!");
     }
     
     // Open codec
     AVDictionary *options = NULL;
-    if (avcodec_open2(codecCtx, codec, &options) < 0) {
+    if (avcodec_open2(codec_ctx, codec, &options) < 0) {
         throw OpenVideoException("Could not open codec!");
     }   
     
@@ -150,26 +149,26 @@ void VideoStream::open(string filePath) {;
     
     // Allocate an AVFrame structure
     frame = avcodec_alloc_frame();
-    frameRGB = avcodec_alloc_frame();
-    if (frameRGB == NULL or frame == NULL) {
+    frame_rgb = avcodec_alloc_frame();
+    if (frame_rgb == NULL or frame == NULL) {
         throw OpenVideoException("Not able to allocate frame space.");
     }
     
     // Determine required buffer size and allocate buffer
-    int numBytes = avpicture_get_size(PIX_FMT_RGB24, codecCtx->width, codecCtx->height);
-    rawData = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
+    int numBytes = avpicture_get_size(PIX_FMT_RGB24, codec_ctx->width, codec_ctx->height);
+    raw_data = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
 
-    sws_ctx = sws_getContext(codecCtx->width, codecCtx->height, 
-            codecCtx->pix_fmt, codecCtx->width, codecCtx->height, PIX_FMT_RGB24, 
+    sws_ctx = sws_getContext(codec_ctx->width, codec_ctx->height, 
+            codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height, PIX_FMT_RGB24, 
             SWS_BILINEAR, NULL, NULL, NULL);
     
-    //av_dump_format(formatCtx, 0, filePath.c_str(), 0);
+    av_dump_format(format_ctx, 0, filePath.c_str(), 0);
   
     // Assign appropriate parts of buffer to image planes in pFrameRGB
     // Note that pFrameRGB is an AVFrame, but AVFrame is a superset
     // of AVPicture
-    avpicture_fill((AVPicture*) frameRGB, rawData, PIX_FMT_RGB24, 
-            codecCtx->width, codecCtx->height);    
+    avpicture_fill((AVPicture*) frame_rgb, raw_data, PIX_FMT_RGB24, 
+            codec_ctx->width, codec_ctx->height);    
     
     openSuccess = true;
 }
@@ -180,10 +179,10 @@ void VideoStream::open(string filePath) {;
  */
 void VideoStream::close() {
     // Free buffer
-    av_free(rawData);
+    av_free(raw_data);
             
     // Free the RGB image
-    av_free(frameRGB);
+    av_free(frame_rgb);
 
     // Free the YUV frame
     av_free(frame);
@@ -192,13 +191,13 @@ void VideoStream::close() {
     av_free_packet(&packet);
     
     // Close Format context
-    avformat_close_input(&formatCtx);    
+    avformat_close_input(&format_ctx);    
     
     // Free AVFormatContext and all its streams
     //avformat_free_context(formatCtx);
     
     // Close Codec context
-    avcodec_close(codecCtx);
+    avcodec_close(codec_ctx);
     
     // Reinit ffmpeg variables
     init();
@@ -207,7 +206,7 @@ void VideoStream::close() {
 /*
  * This function saves a frame to a ppm (raw image) file.
  */
-string VideoStream::saveToPPM(string path, AVFrame *frame, int width, int height, int iframe) {
+string VideoStream::save2PPM(string path, AVFrame *frame, int width, int height, int iframe) {
     ofstream file;
     string fileName;
     
@@ -258,33 +257,40 @@ bool VideoStream::operator>>(Mat& opencvFrame) {
     if (currFrame == vinfo->frameCount) {
         return true;  // Leave in case of finish reading video frames
     }
-    
     // Read frame until it is a video frame
     do {
-        av_read_frame(formatCtx, &packet);
-    } while (packet.stream_index != vStreamIndex);
-    
+        //Should free packet?
+        av_read_frame(format_ctx, &packet);
+    } while (packet.stream_index != v_stream_index);
     int frameFinished = 0;
     
     // Is this a packet from the video stream?
-    if (packet.stream_index == vStreamIndex) {
+    if (packet.stream_index == v_stream_index) {
         while (!frameFinished) {
             // Decode video frame
-            avcodec_decode_video2(codecCtx, frame, &frameFinished, &packet);
+            avcodec_decode_video2(codec_ctx, frame, &frameFinished, &packet);
         }
         string name;
         // Convert the image from its native format to RGB
         sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
-                0, codecCtx->height, frameRGB->data, frameRGB->linesize);
-        if (save) name = saveToPPM("/home/matheus/Videos/BeadTracker/frames", 
-                frameRGB, codecCtx->width, codecCtx->height, currFrame);
+                0, codec_ctx->height, frame_rgb->data, frame_rgb->linesize);
+        if (save) name = save2PPM("/home/matheus/Videos/BeadTracker/frames", 
+                frame_rgb, codec_ctx->width, codec_ctx->height, currFrame);
         currFrame++;
 
-        Size size(codecCtx->width, codecCtx->height);
-        opencvFrame = Mat(size, CV_8UC3, rgb2bgr(rawData, size.area() * 3), 0);
+        // Calculate size and allocate new memory space
+        Size size(codec_ctx->width, codec_ctx->height);
+        uint8_t* bgr_data = rgb2bgr(raw_data, size.area() * 3);
+        uint8_t* frame_data = new uint8_t[size.area() * 3];
+        
+        // Copy data to avoid segmentation fault after the ffmpeg structure 
+        // is freed
+        memcpy(frame_data, bgr_data, size.area() * 3);
+        
+        opencvFrame = Mat(size, CV_8UC3, frame_data, 0);
                 
         // Free the RGB image
-        av_freep(&frameRGB);
+        av_freep(&frame_rgb);
 	  
         // Free the YUV frame
         av_freep(&frame);
@@ -292,13 +298,13 @@ bool VideoStream::operator>>(Mat& opencvFrame) {
 
         // Reallocate frames and attach rawData again to frameRGB
     	frame = avcodec_alloc_frame();
-    	frameRGB = avcodec_alloc_frame();
-        if (frameRGB == NULL or frame == NULL) {
+    	frame_rgb = avcodec_alloc_frame();
+        if (frame_rgb == NULL or frame == NULL) {
             throw OpenVideoException("Not able to allocate frame space.");
         }
         
-    	avpicture_fill((AVPicture *) frameRGB, rawData, PIX_FMT_RGB24, codecCtx->width, 
-                codecCtx->height);   
+    	avpicture_fill((AVPicture *) frame_rgb, raw_data, PIX_FMT_RGB24, codec_ctx->width, 
+                codec_ctx->height); 
     }
     return false;
 }
