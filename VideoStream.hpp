@@ -21,7 +21,6 @@
 #include "OpenVideoException.hpp"
 #include "GeneralException.hpp"
 
-extern pthread_mutex_t sgtn_thrd_safety; // Singeton thread safety controller
 extern std::mutex mtx_singleton; // Mutex for controlling singleton thread-safety
 
 typedef struct _video_info {
@@ -38,16 +37,17 @@ private:
     int currFrame;          // Store the current frame for the purpose of streaming reading
     VideoInformation* vinfo;// Store information on the open video
     bool save;
+    bool has_next;
     
     // FFMPEG variables
-    AVFormatContext     *formatCtx;
-    int                 vStreamIndex;
+    AVFormatContext     *format_ctx;
+    int                 v_stream_index;
     AVCodec             *codec;
-    AVCodecContext      *codecCtx;
+    AVCodecContext      *codec_ctx;
     AVFrame             *frame;
-    AVFrame             *frameRGB;
+    AVFrame             *frame_rgb;
     AVPacket            packet;
-    uint8_t             *rawData;
+    uint8_t             *raw_data;
     struct SwsContext   *sws_ctx;
     
     // Constructors and Destructors
@@ -57,7 +57,7 @@ private:
     virtual ~VideoStream(void);
 
     void init();                  //Init third-part libraries variables and structures
-    std::string saveToPPM(std::string path, AVFrame *frame, int width, int height, int iframe);
+    std::string save2PPM(std::string path, AVFrame *frame, int width, int height, int iframe);
 
 public:
     std::string pathPrefix;
@@ -75,10 +75,11 @@ public:
     VideoStream& operator>>(bool saveToPPM);
     
     // Getters
-    int frame_count() const;
-    double fps() const;
-    double duration() const;
-    int next_frame_id() const;    
+    int frame_count();
+    double fps();
+    double duration();
+    int next_frame_id();
+    bool has_next_frame();
 };
 
 uint8_t* rgb2bgr(uint8_t* data, int area);

@@ -51,11 +51,11 @@ int main(int argc, char** argv) {
     
     gettimeofday(&start, NULL);
     thread t1(t1_routine, video_path);
-    thread t2(t2_routine);
+    //thread t2(t2_routine);
     thread t3(t3_routine);
     
     t1.join();
-    t2.join();
+    //t2.join();
     t3.join();
     
     gettimeofday(&end, NULL);
@@ -82,27 +82,35 @@ void t1_routine(string video_path) {
         video.open(video_path);
 
         // Read frames
-        for (int i = 0; i <= video.frame_count(); i++) {
+        for (int i = 0; i < video.frame_count(); i++) {
             video >> frame;
-            Frame wrapper(video.next_frame_id(), vector<Vec3f>(), frame);
+            
+            Mat gray;
+            vector<Vec3f> circles;
+            cvtColor(frame, gray, CV_BGR2GRAY); // Convert to gray-scale
+            GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
+            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
+                    gray.rows/8, 80, 40, 5, 30); // Detect circles
+            Frame out(i, circles, frame); // Create frame to 
+                            // send to next module
             
             // Begin of mutual exclusion region
-            mtx_queue1.lock();
-            locked = true;
-            
-            if (i < video.frame_count()) queue1.push(wrapper);
-            else queue1.push(Frame::end_frame());
-            
-            locked = false;
-            mtx_queue1.unlock();
+            mtx_queue2.lock();
+            queue2.push(out); 
+            mtx_queue2.unlock();
             // End of mutual exclusion region
             
-            printf("Mod 1 index: %d\n", i);
+            //printf("Mods 1 and 2 index: %d\n", i);
             
-            if (mod3_down) {
-                break;
-            }
+            if (mod3_down) break;
         }
+
+        // Begin of mutual exclusion region
+        mtx_queue2.lock();
+        queue2.push(Frame::end_frame()); 
+        mtx_queue2.unlock();
+        // End of mutual exclusion region        
+        
         // Close video
         video.close();
     }
@@ -117,7 +125,7 @@ void t1_routine(string video_path) {
             mtx_queue1.unlock();
         }
     }
-    cout << "Modulo 1 closed.\n";
+    //cout << "Modulo 1 closed.\n";
 }
 
 void t2_routine() {
@@ -226,16 +234,16 @@ void t3_routine() {
                 // Circle outline
                 circle(src, center, radius, Scalar(0,0,255), 3, 8, 0 );
             }           
-            //imshow("Video", frame.data()); // Show image in window
-            /*if (waitKey(1000/500) != -1) {
+            imshow("Video", frame.data()); // Show image in window
+            /*if (waitKey(1000/30) != -1) {
                 mod3_down = true;
                 break;
             }*/
-            printf("Mod 3 index: %d\n", frame.id());
+            //printf("Mod 3 index: %d\n", frame.id());
             Mat cv_frame = frame.data();
             
             // Free user-allocated data in Mat object and avoid memory leaks
-            if (cv_frame.refcount == NULL) {
+            if (cv_frame.refcount == NULL and !Frame::is_end_frame(frame)) {
                 delete[] cv_frame.data;
                 cv_frame.data = NULL;
             }
@@ -314,8 +322,8 @@ void seq_version(string video_path) {
                 // Circle outline
                 circle(frame, center, radius, Scalar(0,0,255), 3, 8, 0 );
             }
-            imshow("Video", frame); // Show image in window
-            if (waitKey(1000/48) != -1) break;
+            /*imshow("Video", frame); // Show image in window
+            if (waitKey(1000/48) != -1) break;*/
             
             delete[] frame.data;
             frame.data = NULL;

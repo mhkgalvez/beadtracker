@@ -21,7 +21,7 @@ Frame::Frame(bool is_end) {
     if (is_end) this->_id = END_FRAME_ID;
 }
 
-Frame::Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat* data) {
+Frame::Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat data) {
     if (id < 0) {
         throw GeneralException("Frame id must be a non-negative number.");
     }
@@ -48,7 +48,7 @@ vector<Vec3f> Frame::circles() {
     return _circles;
 }
 
-Mat* Frame::data() {
+Mat Frame::data() {
     return _data;
 }
 

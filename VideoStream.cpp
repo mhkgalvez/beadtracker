@@ -44,6 +44,7 @@ VideoStream::~VideoStream(void) {
 void VideoStream::init() {
     currFrame = 0;
     openSuccess = false;
+    has_next = true;
     
     //vinfo = NULL;
     save = false;
@@ -254,59 +255,52 @@ bool VideoStream::operator>>(Mat& opencvFrame) {
         throw ReadException("File not open yet.");
     }
     
+    // Check to see if frames have ended
     if (currFrame == vinfo->frameCount) {
-        return true;  // Leave in case of finish reading video frames
+        has_next = false;
+        return false;  // Leave in case of finish reading video frames
     }
-    // Read frame until it is a video frame
-    do {
-        //Should free packet?
-        av_read_frame(format_ctx, &packet);
-    } while (packet.stream_index != v_stream_index);
-    int frameFinished = 0;
+    if (av_read_frame(format_ctx, &packet) < 0) {
+        throw ReadException("FFMPEG error. Function av_read_frame().");
     
-    // Is this a packet from the video stream?
-    if (packet.stream_index == v_stream_index) {
-        while (!frameFinished) {
-            // Decode video frame
-            avcodec_decode_video2(codec_ctx, frame, &frameFinished, &packet);
-        }
-        string name;
-        // Convert the image from its native format to RGB
-        sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
-                0, codec_ctx->height, frame_rgb->data, frame_rgb->linesize);
-        if (save) name = save2PPM("/home/matheus/Videos/BeadTracker/frames", 
-                frame_rgb, codec_ctx->width, codec_ctx->height, currFrame);
-        currFrame++;
-
-        // Calculate size and allocate new memory space
-        Size size(codec_ctx->width, codec_ctx->height);
-        uint8_t* bgr_data = rgb2bgr(raw_data, size.area() * 3);
-        uint8_t* frame_data = new uint8_t[size.area() * 3];
-        
-        // Copy data to avoid segmentation fault after the ffmpeg structure 
-        // is freed
-        memcpy(frame_data, bgr_data, size.area() * 3);
-        
-        opencvFrame = Mat(size, CV_8UC3, frame_data, 0);
-                
-        // Free the RGB image
-        av_freep(&frame_rgb);
-	  
-        // Free the YUV frame
-        av_freep(&frame);
-        av_free_packet(&packet);
-
-        // Reallocate frames and attach rawData again to frameRGB
-    	frame = avcodec_alloc_frame();
-    	frame_rgb = avcodec_alloc_frame();
-        if (frame_rgb == NULL or frame == NULL) {
-            throw OpenVideoException("Not able to allocate frame space.");
-        }
-        
-    	avpicture_fill((AVPicture *) frame_rgb, raw_data, PIX_FMT_RGB24, codec_ctx->width, 
-                codec_ctx->height); 
     }
-    return false;
+    if (packet.stream_index != v_stream_index) {
+        return false;
+    }
+    int got_picture = 0; 
+    avcodec_decode_video2(codec_ctx, frame, &got_picture, &packet);
+    if (got_picture == 0) {
+        return false;
+    }
+    // Convert the image from its native format to RGB
+    sws_scale(sws_ctx, (uint8_t const * const *) frame->data, frame->linesize, 
+        0, codec_ctx->height, frame_rgb->data, frame_rgb->linesize);
+    // Calculate size and allocate new memory space
+    Size size(codec_ctx->width, codec_ctx->height);
+    uint8_t* bgr_data = rgb2bgr(raw_data, size.area() * 3);
+    uint8_t* frame_data = new uint8_t[size.area() * 3];
+
+    // Copy data to avoid segmentation fault after the ffmpeg structure 
+    // is freed
+    memcpy(frame_data, bgr_data, size.area() * 3);
+    opencvFrame = Mat(size, CV_8UC3, frame_data, 0); 
+    av_free_packet(&packet);
+    currFrame++;
+    /*// Free the RGB image
+    av_freep(&frame_rgb);
+    // Free the YUV frame
+    av_freep(&frame);
+    av_free_packet(&packet);
+    // Reallocate frames and attach rawData again to frameRGB
+    frame = avcodec_alloc_frame();
+    frame_rgb = avcodec_alloc_frame();
+    if (frame_rgb == NULL or frame == NULL) {
+        throw OpenVideoException("Not able to allocate frame space.");
+    }
+    avpicture_fill((AVPicture *) frame_rgb, raw_data, PIX_FMT_RGB24, codec_ctx->width, 
+            codec_ctx->height); 
+    */
+    return true;
 }
 
 /*
@@ -321,7 +315,7 @@ VideoStream& VideoStream::operator>>(bool saveToPPM) {
 /*
  * Return the number of frames in the video.
  */
-int VideoStream::frame_count() const {
+int VideoStream::frame_count() {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
@@ -331,7 +325,7 @@ int VideoStream::frame_count() const {
 /*
  * Return the frame rate (frame per seconds).
  */
-double VideoStream::fps() const {
+double VideoStream::fps() {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
@@ -341,7 +335,7 @@ double VideoStream::fps() const {
 /*
  * Return the total duration of the video.
  */
-double VideoStream::duration() const {
+double VideoStream::duration() {
     if (!openSuccess) {
         throw GeneralException("Structure VideoInformation is not loaded. Try to load a file first.");
     }
@@ -351,8 +345,14 @@ double VideoStream::duration() const {
 /*
  * Return the id of the next frame to be read by the stream.
  */
-int VideoStream::next_frame_id() const {
+int VideoStream::next_frame_id() {
     return currFrame;
+}
+
+/* Return true if there is one more frame to read and false otherwise.
+ */
+bool VideoStream::has_next_frame() {
+    return has_next;
 }
 
 /* Convert an image data array in RGB format to the BGR OpenCV format. You should pass the pointer

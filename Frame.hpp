@@ -23,17 +23,17 @@ class Frame {
 private:
     int _id;
     std::vector<cv::Vec3f> _circles;
-    cv::Mat* _data;
+    cv::Mat _data;
 public:
     Frame();
     Frame(bool is_end);
-    Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat* data);
+    Frame(int id, std::vector<cv::Vec3f> circles, cv::Mat data);
     Frame(const Frame& orig);
     virtual ~Frame();
     
     int id();
     std::vector<cv::Vec3f> circles();
-    cv::Mat* data();
+    cv::Mat data();
     
     static Frame end_frame();
     static bool is_end_frame(Frame&);
