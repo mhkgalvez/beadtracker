@@ -23,6 +23,7 @@ queue< Frame > queue1;
 queue< Frame > queue2;
 mutex mtx_queue1, mtx_queue2;
 volatile bool mod3_down = false;
+bool show = false;
 
 void t1_routine(string video_path);
 void t2_routine();
@@ -45,10 +46,22 @@ double diff(struct timeval t1, struct timeval t2) {
     return usec_diff + sec_diff; // Return the number of milliseconds
 }
 
+string time2str(long long miliseconds) {
+    int msecs = miliseconds % 1000;
+    int secs = miliseconds/1000;
+    int mins = secs/60;
+    secs = secs % 60;
+    
+    stringstream time;
+    time << mins << ":" << secs << ":" << msecs;
+    
+    return time.str();
+}
+
 int main(int argc, char** argv) {	
     struct timeval start, end;
     const string video_path = "/home/matheus/Videos/BeadTracker/cell.avi";
-    
+    /* --- Threaded version deprecated indefinitely ---
     gettimeofday(&start, NULL);
     thread t1(t1_routine, video_path);
     //thread t2(t2_routine);
@@ -58,17 +71,72 @@ int main(int argc, char** argv) {
     //t2.join();
     t3.join();
     
-    gettimeofday(&end, NULL);
+    gettimeofday(&end, NULL);    
     cout << "Threaded version execution time: " 
-            << diff(end, start) << "ms\n";
+            << diff(end, start) << "ms\n";*/
     
     gettimeofday(&start, NULL);
     seq_version(video_path);
     gettimeofday(&end, NULL);
     cout << "Single thread version execution time: " 
-            << diff(end, start) << "ms\n";
+            << time2str(diff(end, start)) << endl;
+    show = true;
+    gettimeofday(&start, NULL);
+    seq_version(video_path);
+    gettimeofday(&end, NULL);
+    cout << "Single thread version execution time: " 
+            << time2str(diff(end, start)) << endl;    
+    
     
     return 0;
+}
+
+void seq_version(string video_path) {
+    try {
+        VideoStream& video = VideoStream::load();
+        Mat frame;
+        video.open(video_path);
+        
+        if (show) namedWindow("Video"); // Create OpenCV window
+        for (int i = 0; i < video.frame_count(); i++) {
+            if (video >> frame == false) throw runtime_error("ERROR!");
+            
+            Mat f = frame.rowRange(190, 540);
+            f = f.colRange(550, 1000);
+            //Mat f = _f.colRange(0, 167);
+            
+            
+            
+            Mat gray;
+            vector<Vec3f> circles;
+            cvtColor(f, gray, CV_BGR2GRAY); // Convert to gray-scale
+            //GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
+            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
+                    gray.rows/8, 80, 40, 5, 30); // Detect circles
+            // Draw the circles detected
+            for(size_t i = 0; i < circles.size(); i++)
+            {
+                Point center(cvRound(circles[i][0]), 
+                        cvRound(circles[i][1]));
+                int radius = cvRound(circles[i][2]);
+                // Circle center
+                circle(f, center, 3, Scalar(0,255,0), -1, 8, 0 );
+                // Circle outline
+                circle(f, center, radius, Scalar(0,0,255), 3, 8, 0 );
+            }
+            if (show) { 
+                imshow("Video", f); // Show image in window
+                if (waitKey(1000/48) != -1) break;
+            }
+            delete[] frame.data;
+            frame.data = NULL;
+        }
+        video.close();
+    }
+    catch (exception& ex) {
+        cout << "Exception: "
+                <<ex.what() + string("\n");     
+    }
 }
 
 void t1_routine(string video_path) {   
@@ -261,77 +329,4 @@ void t3_routine() {
             mtx_queue2.unlock();
         }
     }     
-}
-
-void seq_version(string video_path) {
-    try {
-        VideoStream& video = VideoStream::load();
-        Mat frame;
-        video.open(video_path);
-        
-        /*VideoCapture video(0);
-        
-        video.open(video_path);
-        
-        if (video.isOpened() == false) {
-            cout << "Smaug has come!\n";
-            return;
-        }
-        
-        namedWindow("Video");
-        for (int i = 0; i < video.get(CV_CAP_PROP_FRAME_COUNT); i++) {
-            video >> frame;
-            Mat gray;
-            vector<Vec3f> circles;
-            cvtColor(frame, gray, CV_BGR2GRAY); // Convert to gray-scale
-            GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
-            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
-                    gray.rows/8, 80, 40, 5, 30); // Detect circles
-            // Draw the circles detected
-            for(size_t i = 0; i < circles.size(); i++)
-            {
-                Point center(cvRound(circles[i][0]), 
-                        cvRound(circles[i][1]));
-                int radius = cvRound(circles[i][2]);
-                // Circle center
-                circle(frame, center, 3, Scalar(0,255,0), -1, 8, 0 );
-                // Circle outline
-                circle(frame, center, radius, Scalar(0,0,255), 3, 8, 0 );
-            }
-            imshow("Video", frame); // Show image in window
-            if (waitKey(1000/30) != -1) break;
-        }*/
-        
-        namedWindow("Video");
-        for (int i = 0; i < video.frame_count(); i++) {
-            if (video >> frame == false) throw runtime_error("ERROR!");
-            Mat gray;
-            vector<Vec3f> circles;
-            cvtColor(frame, gray, CV_BGR2GRAY); // Convert to gray-scale
-            GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
-            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
-                    gray.rows/8, 80, 40, 5, 30); // Detect circles
-            // Draw the circles detected
-            for(size_t i = 0; i < circles.size(); i++)
-            {
-                Point center(cvRound(circles[i][0]), 
-                        cvRound(circles[i][1]));
-                int radius = cvRound(circles[i][2]);
-                // Circle center
-                circle(frame, center, 3, Scalar(0,255,0), -1, 8, 0 );
-                // Circle outline
-                circle(frame, center, radius, Scalar(0,0,255), 3, 8, 0 );
-            }
-            /*imshow("Video", frame); // Show image in window
-            if (waitKey(1000/48) != -1) break;*/
-            
-            delete[] frame.data;
-            frame.data = NULL;
-        }
-        video.close();
-    }
-    catch (exception& ex) {
-        cout << "Exception: "
-                <<ex.what() + string("\n");     
-    }
 }
