@@ -19,16 +19,30 @@
 using namespace cv;
 using namespace std;
 
+const int ARROW_LEFT = 1113937;
+const int ARROW_RIGHT = 1113939;
+const int ARROW_UP = 1113938;
+const int ARROW_DOWN = 1113940;
+const int ESC_KEY = 1048603;
+const int PAUSE_BREAK = 1113875;
+const int RIGHT_PLUS = 1114027;
+const int RIGHT_MINUS = 1114029;
+const int RIGHT_TIMES = 1114026;
+const int RIGHT_BAR = 1114031;
+
 queue< Frame > queue1;
 queue< Frame > queue2;
 mutex mtx_queue1, mtx_queue2;
 volatile bool mod3_down = false;
 bool show = false;
 
+Rect getregion(string path);
+    
 void t1_routine(string video_path);
 void t2_routine();
 void t3_routine();
-void seq_version(string video_path);
+void seq_version(string video_path, Rect rect);
+
 
 // Calculate difference between two times: (t1 - t2)
 double diff(struct timeval t1, struct timeval t2) {
@@ -61,37 +75,89 @@ string time2str(long long miliseconds) {
 int main(int argc, char** argv) {	
     struct timeval start, end;
     const string video_path = "/home/matheus/Videos/BeadTracker/cell.avi";
-    /* --- Threaded version deprecated indefinitely ---
-    gettimeofday(&start, NULL);
-    thread t1(t1_routine, video_path);
-    //thread t2(t2_routine);
-    thread t3(t3_routine);
-    
-    t1.join();
-    //t2.join();
-    t3.join();
-    
-    gettimeofday(&end, NULL);    
-    cout << "Threaded version execution time: " 
-            << diff(end, start) << "ms\n";*/
-    
-    gettimeofday(&start, NULL);
-    seq_version(video_path);
-    gettimeofday(&end, NULL);
-    cout << "Single thread version execution time: " 
-            << time2str(diff(end, start)) << endl;
+   
+    Rect region = getregion(video_path);
+ 
     show = true;
     gettimeofday(&start, NULL);
-    seq_version(video_path);
+    seq_version(video_path, region);
     gettimeofday(&end, NULL);
     cout << "Single thread version execution time: " 
             << time2str(diff(end, start)) << endl;    
-    
-    
     return 0;
 }
 
-void seq_version(string video_path) {
+Rect getregion(string path) {
+    VideoStream& video = VideoStream::load();
+    Point p1, p2;
+    namedWindow("Select a region...");    
+    try {
+        video.open(path);
+        double x, y, width, height;
+        double scale;
+        bool exit = false;
+        x = y = width = height = 400;
+        scale = 5.1;
+        Mat first_frame;
+        if (video >> first_frame == false) throw runtime_error("ERROR!");        
+        while (!exit) {
+            p1 = Point(x, y); // Create points
+            p2 = Point(x + width, y + height);
+            // Draw a rectangle representing the region to be processed
+            Mat temp;
+            first_frame.copyTo(temp); // Copy frame to a temporary space 
+            rectangle(temp, p1, p2, Scalar(0, 255, 0), 5, CV_AA, 0);
+            // Resize image
+            Mat img;
+            int _gcd = gcd<int>(temp.cols, temp.rows);
+            cout << "Image resized by the following factor: " << _gcd << endl;
+            resize(temp, img, Size(temp.cols/_gcd, temp.rows/_gcd)); 
+            imshow("Select a region...", img); // Show image resized
+            int key = waitKey(1000/48);
+            switch (key) {
+                case ARROW_LEFT: 
+                    x -= scale;
+                    break;
+                case ARROW_RIGHT:
+                    x += scale;
+                    break;
+                case ARROW_DOWN:
+                    y += scale;
+                    break;
+                case ARROW_UP:
+                    y -= scale;
+                    break;
+                case ESC_KEY:
+                    exit = true;
+                    break;
+                case RIGHT_PLUS:
+                    width += scale;
+                    break;
+                case RIGHT_MINUS:
+                    width -= scale;
+                    break;
+                case RIGHT_TIMES:
+                    height += scale;
+                    break;
+                case RIGHT_BAR:
+                    height -= scale;
+                    break;
+            }
+        }
+        destroyWindow("Select a region...");
+        video.close();
+    }
+    catch (exception& ex) {
+        cout << "Exception: " << ex.what() + string("\n");            
+    }
+    return Rect(p1, p2);
+}
+
+void seq_version(string video_path, Rect rect) {
+    int r1, r2, c1, c2; // Deviations from the center of beads region
+    r1 = r2 = c1 = c2 = 0;
+    Mat region;
+    bool paused = false;
     try {
         VideoStream& video = VideoStream::load();
         Mat frame;
@@ -99,43 +165,61 @@ void seq_version(string video_path) {
         
         if (show) namedWindow("Video"); // Create OpenCV window
         for (int i = 0; i < video.frame_count(); i++) {
-            if (video >> frame == false) throw runtime_error("ERROR!");
-            
-            Mat f = frame.rowRange(190, 540);
-            f = f.colRange(550, 1000);
-            //Mat f = _f.colRange(0, 167);
-            
-            
-            
-            Mat gray;
-            vector<Vec3f> circles;
-            cvtColor(f, gray, CV_BGR2GRAY); // Convert to gray-scale
-            //GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
-            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
-                    gray.rows/8, 80, 40, 5, 30); // Detect circles
-            // Draw the circles detected
-            for(size_t i = 0; i < circles.size(); i++)
-            {
-                Point center(cvRound(circles[i][0]), 
-                        cvRound(circles[i][1]));
-                int radius = cvRound(circles[i][2]);
-                // Circle center
-                circle(f, center, 3, Scalar(0,255,0), -1, 8, 0 );
-                // Circle outline
-                circle(f, center, radius, Scalar(0,0,255), 3, 8, 0 );
+            if (!paused) {
+                if (video >> frame == false) throw runtime_error("ERROR!");
+
+                // Getting picture region around the main beads
+                region = frame.operator ()(rect);//frame.rowRange(190 + r1, 540 + r2);
+                //region = region.colRange(550 + c1, 1000 + c2);
+                Mat gray;               // Gray-scale image
+                vector<Vec3f> circles;  // Circles (Center coordinates and radius)
+                cvtColor(region, gray, CV_BGR2GRAY); // Convert to gray-scale
+                //GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
+                HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
+                        gray.rows/8, 80, 40, 5, 30); // Detect circles
+                // Draw the circles detected
+                for(size_t i = 0; i < circles.size(); i++)
+                {
+                    Point center(cvRound(circles[i][0]), 
+                            cvRound(circles[i][1]));
+                    int radius = cvRound(circles[i][2]);
+                    // Circle center
+                    circle(region, center, 3, Scalar(0,255,0), -1, 8, 0 );
+                    // Circle outline
+                    circle(region, center, radius, Scalar(0,0,255), 3, 8, 0 );
+                }
+            } 
+            else {
+                i--;
             }
             if (show) { 
-                imshow("Video", f); // Show image in window
-                if (waitKey(1000/48) != -1) break;
+                imshow("Video", region); // Show image in window
+                int key;
+                if ((key = waitKey(1000/48)) != -1) {
+                    switch (key) {
+                        case ARROW_LEFT: 
+                            c1--;
+                            break;
+                        case ARROW_UP:
+                            r1--;
+                            break;
+                        case PAUSE_BREAK:
+                            paused = !paused;
+                            break;
+                    }
+                    if (key == ESC_KEY) break;
+                }
             }
-            delete[] frame.data;
-            frame.data = NULL;
+            if (!paused) {
+                // Free user allocated memory in Mat class
+                delete[] frame.data;
+                frame.data = NULL;
+            }
         }
         video.close();
     }
     catch (exception& ex) {
-        cout << "Exception: "
-                <<ex.what() + string("\n");     
+        cout << "Exception: " << ex.what() + string("\n");     
     }
 }
 
@@ -167,8 +251,7 @@ void t1_routine(string video_path) {
             queue2.push(out); 
             mtx_queue2.unlock();
             // End of mutual exclusion region
-            
-            //printf("Mods 1 and 2 index: %d\n", i);
+          
             
             if (mod3_down) break;
         }
