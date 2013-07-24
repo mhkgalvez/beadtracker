@@ -40,6 +40,7 @@ OBJECTFILES= \
 	${OBJECTDIR}/OpenVideoException.o \
 	${OBJECTDIR}/ReadException.o \
 	${OBJECTDIR}/VideoStream.o \
+	${OBJECTDIR}/common.o \
 	${OBJECTDIR}/main.o
 
 
@@ -91,6 +92,11 @@ ${OBJECTDIR}/VideoStream.o: VideoStream.cpp
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/VideoStream.o VideoStream.cpp
+
+${OBJECTDIR}/common.o: common.cpp 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.cc) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/common.o common.cpp
 
 ${OBJECTDIR}/main.o: main.cpp 
 	${MKDIR} -p ${OBJECTDIR}
