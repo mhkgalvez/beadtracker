@@ -1,5 +1,6 @@
 // C++ Includes
 #include <iostream>
+#include <iomanip>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -18,37 +19,60 @@
 using namespace cv;
 using namespace std;
 
-int main(int argc, char** argv) {	
+int main(int argc, char** argv2) {	
     struct timeval start, end;
-    string video_path;
+    stringstream stream;
     
-    argc = 3;
-    argv = new char*[3];
-    argv[0] = const_cast<char*>(string("beadtracker").c_str());
-    argv[1] = const_cast<char*>(string("/home/matheus/Videos/BeadTracker/cell.avi").c_str());
-    argv[2] = const_cast<char*>(string("17.6").c_str());
-        
+    /*char* str = "XPTO";
+    cout << str << endl;
+    cout << *str << endl;
+    cout << setiosflags(ios::hex) << (int*)str << endl;*/
+    
+    argc = 7;
+    string argv[7];
+    argv[0] = "beadtracker";
+    argv[1] = "/home/matheus/Videos/BeadTracker/cell.avi";
+    //argv[1] = "/media/Toaster05/6-02-2011 pair 1 pure protein.avi";
+    argv[2] = "17.6";
+    argv[3] = "325";
+    argv[4] = "147";
+    argv[5] = "724";
+    argv[6] = "540";
+    
     // Checking command line arguments
-    if (argc != 3) {
+    if (argc != 3 and argc != 7) {
         sendMessage(string("You must call beadtracker with at ") + 
                 string("least 3 command line arguments."));
         return -1;
+    }
+    // If we got region dimensions
+    Rect region;
+    if (argc == 7) {
+        for (int i = 3; i < 7; i++) {
+            stream << argv[i] << endl;
+        }
+        stream >> region.x; 
+        stream >> region.y;
+        stream >> region.width;
+        stream >> region.height;
+        stream.str(""); // Clean stream
     }
     
     // Getting file
     video_path = argv[1];
     
     // Getting scale
-    stringstream stream;
     stream << argv[2];
     stream >> scale;
     sendMessage(stream.str());
-    Rect region = getregion(video_path); 
+    if (argc == 3) {
+        region = getregion(); 
+    }
     show = true;
     // Goes into tracking routine only if getregion() succeeded in its task
     if (succeeded) {
         gettimeofday(&start, NULL);
-        bead_detection(video_path, region);
+        bead_detection(region);
         gettimeofday(&end, NULL);
         sendMessage("Single thread version execution time: " 
                 + time2str(diff(end, start)));
