@@ -31,13 +31,13 @@ int main(int argc, char** argv2) {
     argc = 7;
     string argv[7];
     argv[0] = "beadtracker";
-    argv[1] = "/home/matheus/Videos/BeadTracker/cell.avi";
+    argv[1] = "/home/matheus/Videos/BeadTracker/cell2.avi";
     //argv[1] = "/media/Toaster05/6-02-2011 pair 1 pure protein.avi";
     argv[2] = "17.6";
     argv[3] = "325";
-    argv[4] = "147";
+    argv[4] = "297";
     argv[5] = "724";
-    argv[6] = "540";
+    argv[6] = "490";
     
     // Checking command line arguments
     if (argc != 3 and argc != 7) {
