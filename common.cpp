@@ -23,14 +23,21 @@ const int PAGE_DOWN = 1113942;
 bool show = false;
 double scale;
 bool succeeded = true;
-int fps = 2;
+int fps;
+string video_path;
+int minRadius;
+int maxRadius;
+double param1;
+double param2;
+double minDistance;
+double dp;
 
-Rect getregion(string path) {
+Rect getregion() {
     VideoStream& video = VideoStream::load();
     Point p1, p2;
     namedWindow("Select a region");   
     try {
-        video.open(path);
+        video.open(video_path);
         double x, y, width, height;
         bool exit = false;
         Mat first_frame;
@@ -141,7 +148,7 @@ Rect getregion(string path) {
     return Rect(p1, p2);
 }
 
-void bead_detection(string video_path, Rect rect) {
+void bead_detection(Rect rect) {
     int r1, r2, c1, c2; // Deviations from the center of beads region
     r1 = r2 = c1 = c2 = 0;
     Mat region;
@@ -175,8 +182,8 @@ void bead_detection(string video_path, Rect rect) {
                 vector<Vec3f> circles;  // Circles (Center coordinates and radius)
                 cvtColor(region, gray, CV_BGR2GRAY); // Convert to gray-scale
                 //GaussianBlur(gray, gray, Size(9, 9), 2, 2); // Reduce noise
-                HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, 
-                        gray.rows/8, 80, 40, 5, 30); // Detect circles
+                HoughCircles(gray, circles, CV_HOUGH_GRADIENT, dp, 
+                        minDistance, param1, param2, minRadius, maxRadius); // Detect circles
                 if (show) {
                     // Write information
                     stream << "Circles detected: " << circles.size() 
@@ -268,7 +275,7 @@ double distance(Point& bead1, Point& bead2) {
  * in the vector taken as entry arguments. This can be used outside to draw the
  * correct beads in the scene.
  */ 
-vector<int> bead_tracking(std::vector<cv::Point> circles) {
+Tracking bead_tracking(std::vector<cv::Point> circles) {
     static double old_distance = 0;
     double new_distance = 0;
     double err = 10.0;
@@ -283,7 +290,17 @@ vector<int> bead_tracking(std::vector<cv::Point> circles) {
         if (ret == -1 and errno != EEXIST) {
             throw GeneralException(strerror(errno));
         }
-        dirpath << "/" << getpid();
+        stringstream stream(video_path);
+        string segment;
+        vector<string> list;
+        while (getline(stream, segment, '/')) {
+            list.push_back(segment);
+        }
+        // Suppose list.size() is never equals to zero
+        stringstream stream2;
+        stream2 << time(NULL); // Use time(NULL) in order to create a 
+                               // different directory every single time
+        dirpath << "/" << list[list.size()-1] + "_" + stream2.str();
         ret = mkdir(dirpath.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if (ret == -1) {
             throw GeneralException(strerror(errno));
@@ -301,8 +318,50 @@ vector<int> bead_tracking(std::vector<cv::Point> circles) {
         first_time = false;
     }
     // Arbitrarily suppose that the two first points detected are the correct ones
-    Point& bead1 = circles[0];
-    Point& bead2 = circles[1];
+    
+    /* BIG PROBLEM. THIS ASSUMPTION REQUIRES THAT I FIRST DETECT 2 BEADS!
+     */
+    Point* top;
+    Point* bottom;
+    if (circles[1].y < circles[0].y) {
+        top = &circles[1];
+        bottom = &circles[0];
+    }
+    else {
+        top = &circles[0];
+        bottom = &circles[1];
+    }
+    static long int sum_x = 0;
+    static long int sum_y = 0;
+    static int index = 0;
+    Point temp = *top;
+    sum_x += temp.x;
+    sum_y += temp.y;
+    static int formerX = 0, formerY = 0;
+    if (index == 0) {
+        formerX = top->x;
+        formerY = top->y;
+    }
+    if (index > 0) {
+        int newX, newY;
+        newX = sum_x/(index+1);
+        newY = sum_y/(index+1);
+        if (abs(newX - top->x) > 5) {
+            top->x = newX;
+        }
+        else {
+            top->x = formerX;
+        }
+        if (abs(newY - top->y) > 5) {
+            top->y = newY;
+        }
+        else {
+            top->y = formerY;
+        }
+    }
+    cout << index+1 << "_x -- top->x: " << top->x << " -- newX: " << sum_x/(index+1) << endl;
+    cout << index+1 << "_y -- top->y: " << top->y << " -- newY: " << sum_y/(index+1) << endl;
+    index++;
     if (circles.size() == 1) {
         // Save to file (both beads are going to be this single one)
         
@@ -311,22 +370,22 @@ vector<int> bead_tracking(std::vector<cv::Point> circles) {
         vector<int> positions;
         positions.push_back(0);
         // Print information to files
-        bead1_x << circles[0].x << endl;
-        bead1_y << circles[0].y << endl;
-        bead2_x << circles[0].x << endl;
-        bead2_y << circles[0].y << endl;
+        bead1_x << bottom->x << endl;
+        bead1_y << bottom->y << endl;
+        bead2_x << top->x << endl;
+        bead2_y << top->y << endl;
         dist << 0 << endl;
         return positions;  
     }
     else if (circles.size() == 2) {
         // First time
         if (old_distance == 0) {
-            old_distance = distance(bead1, bead2);
+            old_distance = distance(bottom, top);
             // Print information to files
-            bead1_x << circles[0].x << endl;
-            bead1_y << circles[0].y << endl;
-            bead2_x << circles[1].x << endl;
-            bead2_y << circles[1].y << endl;
+            bead1_x << bottom->x << endl;
+            bead1_y << bottom->y << endl;
+            bead2_x << top->x << endl;
+            bead2_y << top->y << endl;
             dist << old_distance << endl;            
             vector<int> positions;
             positions.push_back(0);
@@ -334,16 +393,16 @@ vector<int> bead_tracking(std::vector<cv::Point> circles) {
             return positions; 
         }
         else {
-            new_distance = distance(bead1, bead2); 
+            new_distance = distance(bottom, top); 
             double diff = abs(new_distance - old_distance);
             // Only accept as valid if it refers to the two correct beads.
             // Otherwise return nothing
             if (diff < err) {
                 // Print information to files
-                bead1_x << circles[0].x << endl;
-                bead1_y << circles[0].y << endl;
-                bead2_x << circles[1].x << endl;
-                bead2_y << circles[1].y << endl;
+                bead1_x << bottom->x << endl;
+                bead1_y << bottom->y << endl;
+                bead2_x << top->x << endl;
+                bead2_y << top->y << endl;
                 dist << new_distance << endl;                  
                 old_distance = new_distance;
                 vector<int> positions;
@@ -353,6 +412,9 @@ vector<int> bead_tracking(std::vector<cv::Point> circles) {
             }           
         }
     }
+    /* BIG PROBLEM. IF THERE ARE MORE THAN 3 BEADS THE PREVIOUS 
+     * ASSUMPTION OF TOP AND BOTTOM IS TERRIBLY WRONG!!!
+     */
     else if (circles.size() > 2) {
         // First time
         if (old_distance == 0) {
@@ -447,7 +509,7 @@ const char* CLOSE_MESSAGE = "<<<close>>>";
 
 // Interprocess communication via FIFO
 void sendMessage(string message) {
-    ofstream fifo;
+    /*ofstream fifo;
     
     // Initialize FIFO
     struct passwd *pw = getpwuid(getuid());
@@ -461,7 +523,8 @@ void sendMessage(string message) {
     
     message += "\n";
     fifo << message;
-    fifo.close();
+    fifo.close();*/
+    cout << message << endl;
 }
 
 void sendMessage(const char* message) {
